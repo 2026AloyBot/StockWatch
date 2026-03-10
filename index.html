@@ -78,10 +78,17 @@
       const [trackedHigh, setTrackedHigh] = useState(stored.trackedHigh || null);
       const [showAlertSettings, setShowAlertSettings] = useState(false);
       const [alertPct, setAlertPct] = useState(alertThreshold);
+      const [shares, setShares] = useState(stored.shares || 1);
+      const [annualDividend, setAnnualDividend] = useState(stored.annualDividend || 0);
+      const [showDividendSettings, setShowDividendSettings] = useState(false);
 
       const curPrice = priceData?.price || 0;
       const bp = parseFloat(buyPrice);
       const hasBuy = !isNaN(bp) && bp > 0;
+      
+      // Dividend calculations
+      const dividendYield = curPrice > 0 ? (annualDividend / curPrice) * 100 : 0;
+      const annualDividendIncome = annualDividend * shares;
 
       useEffect(() => {
         if (!hasBuy || !curPrice) return;
@@ -111,7 +118,9 @@
 
       const handleBuyPriceChange = (v) => { setBuyPrice(v); const p = parseFloat(v); const newHigh = (!trackedHigh && p > 0) ? p : trackedHigh; if (!trackedHigh && p > 0) setTrackedHigh(p); onSave({ buyPrice: v, buyDate, trackedHigh: newHigh, alertPct }); };
       const handleBuyDateChange = (v) => { setBuyDate(v); onSave({ buyPrice, buyDate: v, trackedHigh, alertPct }); };
-      const handleAlertChange = (v) => { setAlertPct(parseFloat(v)); onSave({ buyPrice, buyDate, trackedHigh, alertPct: parseFloat(v) }); };
+      const handleAlertChange = (v) => { setAlertPct(parseFloat(v)); onSave({ buyPrice, buyDate, trackedHigh, alertPct: parseFloat(v), shares, annualDividend }); };
+      const handleSharesChange = (v) => { const s = parseFloat(v) || 1; setShares(s); onSave({ buyPrice, buyDate, trackedHigh, alertPct, shares: s, annualDividend }); };
+      const handleDividendChange = (v) => { const d = parseFloat(v) || 0; setAnnualDividend(d); onSave({ buyPrice, buyDate, trackedHigh, alertPct, shares, annualDividend: d }); };
 
       return (
         <div style={{ background: "#FEFCF8", borderRadius: 12, border: `1px solid ${cardBdr}`, boxShadow: alertFired ? "0 2px 16px rgba(192,57,43,0.08)" : "0 2px 8px rgba(100,80,40,0.06)", overflow: "hidden", marginBottom: 20 }}>
@@ -160,6 +169,31 @@
                 </div>
               )}
             </div>
+            {/* Dividend Settings */}
+            <div style={{ marginBottom: 18 }}>
+              <button onClick={() => setShowDividendSettings(!showDividendSettings)} style={{ background: 'none', border: 'none', color: '#14b8a6', cursor: 'pointer', fontSize: 12, ...mono() }}>{showDividendSettings ? '▼' : '▶'} Dividend Settings</button>
+              {showDividendSettings && (
+                <div style={{ marginTop: 10, padding: 12, background: '#F9F5EE', borderRadius: 8, border: '1px solid #E2D9C8' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div>
+                      <label style={mono({ fontSize: 8, fontWeight: 600, letterSpacing: 2, color: "#B0A590", textTransform: "uppercase" })}>Shares Owned</label>
+                      <input type="number" value={shares} onChange={e => handleSharesChange(e.target.value)} style={{ marginTop: 4, width: '100%', padding: '8px', ...mono({ fontSize: 14 }), border: '1px solid #D4C9B4', borderRadius: 4, background: '#FEFCF8' }} />
+                    </div>
+                    <div>
+                      <label style={mono({ fontSize: 8, fontWeight: 600, letterSpacing: 2, color: "#B0A590", textTransform: "uppercase" })}>Annual Dividend/Share ($)</label>
+                      <input type="number" value={annualDividend} placeholder="e.g. 0.50" onChange={e => handleDividendChange(e.target.value)} style={{ marginTop: 4, width: '100%', padding: '8px', ...mono({ fontSize: 14 }), border: '1px solid #D4C9B4', borderRadius: 4, background: '#FEFCF8' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Dividend Display */}
+            {annualDividend > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", border: "1px solid #E2D9C8", borderRadius: 8, overflow: "hidden", background: "#F0FDF4", marginBottom: 18 }}>
+                <div style={{ padding: "12px 16px", borderRight: "1px solid #E2D9C8" }}><Label>Dividend Yield</Label><div style={mono({ fontSize: 17, fontWeight: 600, color: "#15803d" })}>{dividendYield.toFixed(2)}%</div></div>
+                <div style={{ padding: "12px 16px" }}><Label>Annual Income</Label><div style={mono({ fontSize: 17, fontWeight: 600, color: "#15803d" })}>${annualDividendIncome.toFixed(2)}</div></div>
+              </div>
+            )}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", border: "1px solid #E2D9C8", borderRadius: 8, overflow: "hidden", background: "#F9F5EE", marginBottom: 18 }}>
               <div style={{ padding: "13px 14px", borderRight: "1px solid #E2D9C8" }}><Label>Current Price</Label><div style={mono({ fontSize: 17, fontWeight: 600, color: "#1C1712" })}>{priceData ? fmt(curPrice) : "—"}</div></div>
               <div style={{ padding: "13px 14px", borderRight: "1px solid #E2D9C8" }}><Label>Tracked High</Label><div style={mono({ fontSize: 17, fontWeight: 600, color: "#7A6E5F" })}>{effectiveHigh ? fmt(effectiveHigh) : "—"}</div></div>

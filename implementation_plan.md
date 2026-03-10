@@ -4,7 +4,7 @@
 
 Based on common retail investor needs:
 
-1. **Portfolio Summary Dashboard** - Total value, daily P&L, overall gain/loss at a glance
+1. **Portfolio Total value, daily Summary Dashboard** - P&L, overall gain/loss at a glance
 2. **Dividend Tracking** - Expected dividends, yield, payment dates
 3. **Price Alerts** - Notifications when price hits target (above/below)
 4. **Multiple Portfolios** - Group stocks into different portfolios (e.g., "Growth", "Retirement")
@@ -14,11 +14,11 @@ Based on common retail investor needs:
 
 ## Implementation Checklist
 
-### ☐ Feature 1: Portfolio Summary Dashboard
-- [ ] Add header showing total portfolio value
-- [ ] Show total daily change ($ and %)
-- [ ] Show total gain/loss since purchase
-- [ ] Display number of stocks being tracked
+### ☑ Feature 1: Portfolio Summary Dashboard
+- [x] Add header showing total portfolio value
+- [x] Show total daily change ($ and %)
+- [x] Show total gain/loss since purchase
+- [x] Display number of stocks being tracked
 
 ### ☐ Feature 2: Dividend Tracking
 - [ ] Add dividend yield field to stock data
