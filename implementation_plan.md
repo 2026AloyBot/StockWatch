@@ -25,11 +25,11 @@ Based on common retail investor needs:
 - [x] Show annual dividend estimate
 - [x] Display dividend frequency (quarterly, annually)
 
-### ☐ Feature 3: Price Alerts (Enhanced) (Enhanced)
-- [ ] Add "Alert me when price is ABOVE $X"
-- [ ] Add "Alert me when price is BELOW $X" 
-- [ ] Show active alerts on each stock card
-- [ ] Visual indicator when alert triggers
+### ☑ Feature 3: Price Alerts (Enhanced)
+- [x] Add "Alert me when price is ABOVE $X"
+- [x] Add "Alert me when price is BELOW $X" 
+- [x] Show active alerts on each stock card
+- [x] Visual indicator when alert triggers
 
 ### ☐ Feature 4: Multiple Portfolios
 - [ ] Add "Create Portfolio" button

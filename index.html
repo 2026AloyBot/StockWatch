@@ -241,7 +241,7 @@
       );
     }
 
-    function AddStockForm({ onAdd }) {
+    function AddStockForm({ onAdd, portfolioId }) {
       const [search, setSearch] = useState("");
       const [results, setResults] = useState([]);
 
@@ -270,10 +270,17 @@
       const [watchlist, setWatchlist] = useState([]);
       const [prices, setPrices] = useState({});
       const [loading, setLoading] = useState(true);
+      const [portfolios, setPortfolios] = useState([{ id: 'default', name: 'My Portfolio' }]);
+      const [activePortfolio, setActivePortfolio] = useState('default');
+      const [showPortfolioManager, setShowPortfolioManager] = useState(false);
+      const [newPortfolioName, setNewPortfolioName] = useState('');
 
+      // Load data
       useEffect(() => {
-        const saved = localStorage.getItem('stockwatch_watchlist');
-        if (saved) { try { setWatchlist(JSON.parse(saved)); } catch (e) { console.log('Error:', e); } }
+        const savedWatchlist = localStorage.getItem('stockwatch_watchlist');
+        const savedPortfolios = localStorage.getItem('stockwatch_portfolios');
+        if (savedWatchlist) { try { setWatchlist(JSON.parse(savedWatchlist)); } catch (e) { console.log('Error:', e); } }
+        if (savedPortfolios) { try { setPortfolios(JSON.parse(savedPortfolios)); } catch (e) { console.log('Error:', e); } }
         setLoading(false);
       }, []);
 
@@ -286,34 +293,60 @@
         if (watchlist.length > 0) { fetchPrices(); const interval = setInterval(fetchPrices, 5 * 60 * 1000); return () => clearInterval(interval); }
       }, [watchlist.length]);
 
-      const handleAddStock = (stock) => { if (watchlist.find(s => s.id === stock.id)) return; const newWatchlist = [...watchlist, stock]; setWatchlist(newWatchlist); localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist)); };
+      const handleAddStock = (stock) => { if (watchlist.find(s => s.id === stock.id)) return; const newStock = { ...stock, portfolioId: activePortfolio }; const newWatchlist = [...watchlist, newStock]; setWatchlist(newWatchlist); localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist)); };
       const handleRemoveStock = (stockId) => { const newWatchlist = watchlist.filter(s => s.id !== stockId); setWatchlist(newWatchlist); localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist)); };
       const handleSaveStock = (stockId, data) => { const newWatchlist = watchlist.map(s => s.id === stockId ? { ...s, ...data } : s); setWatchlist(newWatchlist); localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist)); };
+      
+      const handleCreatePortfolio = () => {
+        if (!newPortfolioName.trim()) return;
+        const newPort = { id: Date.now().toString(), name: newPortfolioName.trim() };
+        const newPortfolios = [...portfolios, newPort];
+        setPortfolios(newPortfolios);
+        localStorage.setItem('stockwatch_portfolios', JSON.stringify(newPortfolios));
+        setActivePortfolio(newPort.id);
+        setNewPortfolioName('');
+      };
+      
+      const handleDeletePortfolio = (pid) => {
+        if (pid === 'default') return;
+        const newPortfolios = portfolios.filter(p => p.id !== pid);
+        setPortfolios(newPortfolios);
+        localStorage.setItem('stockwatch_portfolios', JSON.stringify(newPortfolios));
+        if (activePortfolio === pid) setActivePortfolio('default');
+      };
+      
+      // Filter stocks by active portfolio
+      const filteredWatchlist = watchlist.filter(s => (s.portfolioId || 'default') === activePortfolio);
 
       // Portfolio Summary Calculations
       const portfolioStats = (() => {
         let totalValue = 0;
         let totalCost = 0;
         let totalDayChange = 0;
+        let totalDividendIncome = 0;
+        let totalShares = 0;
         let stocksWithBuy = 0;
         
-        watchlist.forEach(stock => {
+        filteredWatchlist.forEach(stock => {
           const price = prices[stock.id]?.price || 0;
           const dayChange = prices[stock.id]?.dayChange || 0;
           const buyPrice = parseFloat(stock.buyPrice) || 0;
+          const shares = parseFloat(stock.shares) || 1;
+          const dividend = parseFloat(stock.annualDividend) || 0;
           
-          if (buyPrice > 0) {
-            totalValue += price; // Assume 1 share for simplicity
-            totalCost += buyPrice;
-            totalDayChange += (price * dayChange / 100);
-            stocksWithBuy++;
-          }
+          totalShares += shares;
+          totalValue += price * shares;
+          totalCost += buyPrice * shares;
+          totalDayChange += (price * shares * dayChange / 100);
+          totalDividendIncome += dividend * shares;
+          
+          if (buyPrice > 0) stocksWithBuy++;
         });
         
         const totalGainLoss = totalValue - totalCost;
         const totalGainLossPct = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
         
-        return { totalValue, totalCost, totalDayChange, totalGainLoss, totalGainLossPct, stocksWithBuy, totalStocks: watchlist.length };
+        return { totalValue, totalCost, totalDayChange, totalGainLoss, totalGainLossPct, totalDividendIncome, stocksWithBuy, totalStocks: filteredWatchlist.length, totalShares };
       })();
 
       if (loading) return <div style={{ minHeight: "100vh", background: "#F5F0E8", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#B0A590" }}>Loading...</span></div>;
@@ -330,11 +363,18 @@
               
               {/* Portfolio Summary */}
               {portfolioStats.totalStocks > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 20, padding: 16, background: '#FEFCF8', borderRadius: 12, border: '1px solid #E2D9C8' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 20, padding: 16, background: '#FEFCF8', borderRadius: 12, border: '1px solid #E2D9C8' }}>
                   <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>TOTAL VALUE</div><div style={mono({ fontSize: 18, fontWeight: 600 })}>${portfolioStats.totalValue.toFixed(2)}</div></div>
                   <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>TOTAL COST</div><div style={mono({ fontSize: 18, fontWeight: 600 })}>${portfolioStats.totalCost.toFixed(2)}</div></div>
                   <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>GAIN/LOSS</div><div style={mono({ fontSize: 18, fontWeight: 600, color: portfolioStats.totalGainLoss >= 0 ? '#1E6B3C' : '#C0392B' })}>{portfolioStats.totalGainLoss >= 0 ? '+' : ''}${portfolioStats.totalGainLoss.toFixed(2)} ({portfolioStats.totalGainLossPct.toFixed(1)}%)</div></div>
+                </div>
+              )}
+              {portfolioStats.totalStocks > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 12, padding: 16, background: '#FEFCF8', borderRadius: 12, border: '1px solid #E2D9C8' }}>
                   <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>DAY CHANGE</div><div style={mono({ fontSize: 18, fontWeight: 600, color: portfolioStats.totalDayChange >= 0 ? '#1E6B3C' : '#C0392B' })}>{portfolioStats.totalDayChange >= 0 ? '+' : ''}${portfolioStats.totalDayChange.toFixed(2)}</div></div>
+                  <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>SHARES</div><div style={mono({ fontSize: 18, fontWeight: 600 })}>{portfolioStats.totalShares}</div></div>
+                  <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>AVG COST</div><div style={mono({ fontSize: 18, fontWeight: 600 })}>${portfolioStats.totalShares > 0 ? (portfolioStats.totalCost / portfolioStats.totalShares).toFixed(2) : '0.00'}</div></div>
+                  <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>ANNUAL DIV</div><div style={mono({ fontSize: 18, fontWeight: 600, color: '#15803d' })}>${portfolioStats.totalDividendIncome.toFixed(2)}</div></div>
                 </div>
               )}
               
@@ -343,8 +383,38 @@
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#7A6E5F", border: "1px solid #E2D9C8", background: "#F9F5EE" }}><div style={{ width: 7, height: 7, borderRadius: "50%", background: "#1E6B3C" }} />Tracked high auto-updates on each refresh</div>
               </div>
             </div>
+            {/* Portfolio Tabs */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+              {portfolios.map(p => (
+                <button key={p.id} onClick={() => setActivePortfolio(p.id)} style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, ...mono(), background: activePortfolio === p.id ? '#f97316' : '#F9F5EE', color: activePortfolio === p.id ? 'white' : '#7A6E5F', border: activePortfolio === p.id ? 'none' : '1px solid #E2D9C8' }}>
+                  {p.name}
+                </button>
+              ))}
+              <button onClick={() => setShowPortfolioManager(!showPortfolioManager)} style={{ padding: '8px 16px', borderRadius: 20, border: '1px dashed #E2D9C8', cursor: 'pointer', fontSize: 12, ...mono(), background: 'transparent', color: '#B0A590' }}>+ Portfolio</button>
+            </div>
+            
+            {/* Portfolio Manager */}
+            {showPortfolioManager && (
+              <div style={{ marginBottom: 20, padding: 16, background: '#F9F5EE', borderRadius: 8, border: '1px solid #E2D9C8' }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="text" placeholder="New portfolio name" value={newPortfolioName} onChange={e => setNewPortfolioName(e.target.value)} style={{ flex: 1, padding: '8px 12px', borderRadius: 4, border: '1px solid #D4C9B4', ...mono({ fontSize: 12 }) }} />
+                  <button onClick={handleCreatePortfolio} style={{ padding: '8px 16px', background: '#f97316', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', ...mono({ fontSize: 12 }) }}>Create</button>
+                </div>
+                {portfolios.length > 1 && (
+                  <div style={{ marginTop: 12 }}>
+                    {portfolios.filter(p => p.id !== 'default').map(p => (
+                      <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #E2D9C8' }}>
+                        <span {...mono({ fontSize: 12 })}>{p.name}</span>
+                        <button onClick={() => handleDeletePortfolio(p.id)} style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', ...mono({ fontSize: 11 }) }}>Delete</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
             <AddStockForm onAdd={handleAddStock} />
-            {watchlist.length === 0 ? <div style={{ textAlign: 'center', padding: 40, color: '#B0A590', ...mono({ fontSize: 12 }) }}>Search and add stocks above to start tracking</div> : watchlist.map(s => <Card key={s.id} meta={s} priceData={prices[s.id]} stored={{ buyPrice: s.buyPrice, buyDate: s.buyDate, trackedHigh: s.trackedHigh }} alertThreshold={s.alertPct || -20} onSave={(data) => handleSaveStock(s.id, data)} onDelete={handleRemoveStock} />)}
+            {filteredWatchlist.length === 0 ? <div style={{ textAlign: 'center', padding: 40, color: '#B0A590', ...mono({ fontSize: 12 }) }}>{watchlist.length === 0 ? 'Search and add stocks above to start tracking' : 'No stocks in this portfolio'}</div> : filteredWatchlist.map(s => <Card key={s.id} meta={s} priceData={prices[s.id]} stored={{ buyPrice: s.buyPrice, buyDate: s.buyDate, trackedHigh: s.trackedHigh, shares: s.shares, annualDividend: s.annualDividend, priceAboveTarget: s.priceAboveTarget, priceBelowTarget: s.priceBelowTarget }} alertThreshold={s.alertPct || -20} onSave={(data) => handleSaveStock(s.id, data)} onDelete={handleRemoveStock} />)}
             <div style={{ textAlign: "center", padding: 14, border: "1px solid #E2D9C8", borderRadius: 8, background: "#F9F5EE" }}><span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#B0A590", lineHeight: 1.7 }}>Data saved to your browser · Tracked high only moves up · Alert fires at your custom threshold</span></div>
           </div>
         </div>
