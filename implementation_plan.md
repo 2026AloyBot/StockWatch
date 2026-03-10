@@ -20,12 +20,12 @@ Based on common retail investor needs:
 - [x] Show total gain/loss since purchase
 - [x] Display number of stocks being tracked
 
-### ☐ Feature 2: Dividend Tracking
-- [ ] Add dividend yield field to stock data
-- [ ] Show annual dividend estimate
-- [ ] Display dividend frequency (quarterly, annually)
+### ☑ Feature 2: Dividend Tracking
+- [x] Add dividend yield field to stock data
+- [x] Show annual dividend estimate
+- [x] Display dividend frequency (quarterly, annually)
 
-### ☐ Feature 3: Price Alerts (Enhanced)
+### ☐ Feature 3: Price Alerts (Enhanced) (Enhanced)
 - [ ] Add "Alert me when price is ABOVE $X"
 - [ ] Add "Alert me when price is BELOW $X" 
 - [ ] Show active alerts on each stock card

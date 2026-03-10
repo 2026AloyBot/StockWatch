@@ -77,6 +77,8 @@
       const [buyDate, setBuyDate] = useState(stored.buyDate || "");
       const [trackedHigh, setTrackedHigh] = useState(stored.trackedHigh || null);
       const [showAlertSettings, setShowAlertSettings] = useState(false);
+      const [priceAboveTarget, setPriceAboveTarget] = useState(stored.priceAboveTarget || null);
+      const [priceBelowTarget, setPriceBelowTarget] = useState(stored.priceBelowTarget || null);
       const [alertPct, setAlertPct] = useState(alertThreshold);
       const [shares, setShares] = useState(stored.shares || 1);
       const [annualDividend, setAnnualDividend] = useState(stored.annualDividend || 0);
@@ -100,17 +102,18 @@
       const drawdownPct = effectiveHigh ? ((curPrice - effectiveHigh) / effectiveHigh) * 100 : null;
       const absDd = drawdownPct !== null ? Math.abs(drawdownPct) : 0;
       const alertFired = drawdownPct !== null && drawdownPct <= alertPct;
+      const priceAlertFired = aboveAlertTriggered || belowAlertTriggered;
       const triggerPrice = effectiveHigh ? effectiveHigh * (1 + alertPct / 100) : null;
       const aboveBelow = triggerPrice ? curPrice - triggerPrice : null;
       const gainPct = hasBuy ? ((curPrice - bp) / bp) * 100 : null;
       let daysHeld = null;
       if (buyDate) { const d = new Date(buyDate); if (!isNaN(d)) daysHeld = Math.floor((new Date() - d) / 86400000); }
 
-      const alertCol = alertFired ? "#C0392B" : "#1E6B3C";
-      const alertBg = alertFired ? "rgba(192,57,43,0.08)" : "rgba(30,107,60,0.08)";
-      const alertBdr = alertFired ? "rgba(192,57,43,0.25)" : "rgba(30,107,60,0.2)";
-      const alertTxt = alertFired ? `ALERT ${alertPct}%` : "NORMAL";
-      const cardBdr = alertFired ? "rgba(192,57,43,0.4)" : "#E2D9C8";
+      const alertCol = (alertFired || priceAlertFired) ? "#C0392B" : "#1E6B3C";
+      const alertBg = (alertFired || priceAlertFired) ? "rgba(192,57,43,0.08)" : "rgba(30,107,60,0.08)";
+      const alertBdr = (alertFired || priceAlertFired) ? "rgba(192,57,43,0.25)" : "rgba(30,107,60,0.2)";
+      const alertTxt = alertFired ? `−${Math.abs(alertPct)}% ALERT` : (priceAlertFired ? "PRICE ALERT" : "NORMAL");
+      const cardBdr = (alertFired || priceAlertFired) ? "rgba(192,57,43,0.4)" : "#E2D9C8";
       const stripeBg = alertFired ? "linear-gradient(90deg,#C0392B,#E74C3C)" : "linear-gradient(90deg,#1E6B3C,#27AE60)";
       const chgCol = priceData?.dayChange > 0 ? "#1E6B3C" : priceData?.dayChange < 0 ? "#C0392B" : "#B0A590";
       const barGrad = absDd >= Math.abs(alertPct) ? "linear-gradient(90deg,#1E6B3C,#C0392B)" : "#1E6B3C";
@@ -121,6 +124,12 @@
       const handleAlertChange = (v) => { setAlertPct(parseFloat(v)); onSave({ buyPrice, buyDate, trackedHigh, alertPct: parseFloat(v), shares, annualDividend }); };
       const handleSharesChange = (v) => { const s = parseFloat(v) || 1; setShares(s); onSave({ buyPrice, buyDate, trackedHigh, alertPct, shares: s, annualDividend }); };
       const handleDividendChange = (v) => { const d = parseFloat(v) || 0; setAnnualDividend(d); onSave({ buyPrice, buyDate, trackedHigh, alertPct, shares, annualDividend: d }); };
+      const handlePriceAboveChange = (v) => { const p = parseFloat(v); setPriceAboveTarget(p); onSave({ buyPrice, buyDate, trackedHigh, alertPct, shares, annualDividend, priceAboveTarget: p, priceBelowTarget }); };
+      const handlePriceBelowChange = (v) => { const p = parseFloat(v); setPriceBelowTarget(p); onSave({ buyPrice, buyDate, trackedHigh, alertPct, shares, annualDividend, priceAboveTarget, priceBelowTarget: p }); };
+      
+      // Price target alerts
+      const aboveAlertTriggered = priceAboveTarget && curPrice >= priceAboveTarget;
+      const belowAlertTriggered = priceBelowTarget && curPrice <= priceBelowTarget;
 
       return (
         <div style={{ background: "#FEFCF8", borderRadius: 12, border: `1px solid ${cardBdr}`, boxShadow: alertFired ? "0 2px 16px rgba(192,57,43,0.08)" : "0 2px 8px rgba(100,80,40,0.06)", overflow: "hidden", marginBottom: 20 }}>
@@ -166,6 +175,14 @@
                     <option value={-25}>-25%</option>
                     <option value={-30}>-30%</option>
                   </select>
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #E2D9C8' }}>
+                    <label style={mono({ fontSize: 8, fontWeight: 600, letterSpacing: 2, color: "#B0A590", textTransform: "uppercase" })}>Alert when price ABOVE ($)</label>
+                    <input type="number" value={priceAboveTarget || ''} placeholder="e.g. 60.00" onChange={e => handlePriceAboveChange(e.target.value)} style={{ marginTop: 6, width: '100%', padding: '8px', ...mono({ fontSize: 14 }), border: '1px solid #D4C9B4', borderRadius: 4, background: '#FEFCF8' }} />
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <label style={mono({ fontSize: 8, fontWeight: 600, letterSpacing: 2, color: "#B0A590", textTransform: "uppercase" })}>Alert when price BELOW ($)</label>
+                    <input type="number" value={priceBelowTarget || ''} placeholder="e.g. 40.00" onChange={e => handlePriceBelowChange(e.target.value)} style={{ marginTop: 6, width: '100%', padding: '8px', ...mono({ fontSize: 14 }), border: '1px solid #D4C9B4', borderRadius: 4, background: '#FEFCF8' }} />
+                  </div>
                 </div>
               )}
             </div>
