@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASX Watchlist — Peak Drawdown Monitor</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #F5F0E8; min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    // Simple localStorage wrapper for the React component
+    window.storage = {
+      get: function(key) {
+        const value = localStorage.getItem(key);
+        return value ? { value } : null;
+      },
+      set: function(key, value) {
+        localStorage.setItem(key, value);
+      }
+    };
+  </script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ── PRICES (Claude updates these on each refresh) ─────────────────────
+    const PRICE_DATA = {
+      WTC: { price: 50.93, dayChange: -3.91, lastUpdated: "10 Mar 2026" },
+      TNE: { price: 27.33, dayChange: +3.92, lastUpdated: "10 Mar 2026" },
+    };
+
+    const STOCK_META = [
+      { id: "WTC", name: "WiseTech Global", exchange: "ASX" },
+      { id: "TNE", name: "Technology One",  exchange: "ASX" },
+    ];
+    // ─────────────────────────────────────────────────────────────────────
+
+    const fmt = (n) => `$${Number(n).toFixed(2)}`;
+
+    function Gauge({ pct }) {
+      const r = 44, sw = 7, cx = 55, cy = 55;
+      const circ = 2 * Math.PI * r;
+      const abs  = Math.min(Math.abs(pct), 50);
+      const fill = (abs / 50) * circ;
+      const col  = abs >= 20 ? "#C0392B" : "#1E6B3C";
+      const bg   = abs >= 20 ? "#FDF0EE" : "#EBF5EF";
+      return (
+        <svg width="110" height="110" viewBox="0 0 110 110" style={{ flexShrink: 0 }}>
+          <circle cx={cx} cy={cy} r={r} fill={bg}   stroke="#E2D9C8" strokeWidth={sw} />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke={col}    strokeWidth={sw}
+            strokeDasharray={`${fill} ${circ - fill}`}
+            strokeDashoffset={circ * 0.25} strokeLinecap="round" />
+          <text x={cx} y={cy - 2}  textAnchor="middle" fill={col}
+            style={{ fontSize: 17, fontWeight: 600, fontFamily: "'DM Mono',monospace" }}>
+            {pct.toFixed(1)}%
+          </text>
+          <text x={cx} y={cy + 13} textAnchor="middle" fill="#B0A590"
+            style={{ fontSize: 7, fontFamily: "'DM Mono',monospace", letterSpacing: 1.5 }}>
+            FROM PEAK
+          </text>
+        </svg>
+      );
+    }
+
+    function Label({ children }) {
+      return (
+        <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 8, fontWeight: 600, letterSpacing: 2, color: "#B0A590", textTransform: "uppercase", marginBottom: 5 }}>
+          {children}
+        </div>
+      );
+    }
+
+    function Card({ meta, priceData, stored, onSave }) {
+      const [buyPrice,    setBuyPrice]    = useState(stored.buyPrice    || "");
+      const [buyDate,     setBuyDate]     = useState(stored.buyDate     || "");
+      const [trackedHigh, setTrackedHigh] = useState(stored.trackedHigh || null);
+
+      const curPrice = priceData.price;
+      const bp       = parseFloat(buyPrice);
+      const hasBuy   = !isNaN(bp) && bp > 0;
+
+      useEffect(() => {
+        if (!hasBuy) return;
+        const current = trackedHigh || bp;
+        if (curPrice > current) {
+          setTrackedHigh(curPrice);
+          onSave({ buyPrice, buyDate, trackedHigh: curPrice });
+        }
+      }, [curPrice, buyPrice]);
+
+      const effectiveHigh = trackedHigh;
+      const drawdownPct   = effectiveHigh ? ((curPrice - effectiveHigh) / effectiveHigh) * 100 : null;
+      const absDd         = drawdownPct !== null ? Math.abs(drawdownPct) : 0;
+      const alertFired    = drawdownPct !== null && drawdownPct <= -20;
+      const trigger20     = effectiveHigh ? effectiveHigh * 0.80 : null;
+      const aboveBelow    = trigger20 ? curPrice - trigger20 : null;
+      const gainPct       = hasBuy ? ((curPrice - bp) / bp) * 100 : null;
+
+      let daysHeld = null;
+      if (buyDate) {
+        const d = new Date(buyDate);
+        if (!isNaN(d)) daysHeld = Math.floor((new Date("2026-03-10") - d) / 86400000);
+      }
+
+      const alertCol  = alertFired ? "#C0392B" : "#1E6B3C";
+      const alertBg   = alertFired ? "rgba(192,57,43,0.08)" : "rgba(30,107,60,0.08)";
+      const alertBdr  = alertFired ? "rgba(192,57,43,0.25)" : "rgba(30,107,60,0.2)";
+      const alertTxt  = alertFired ? "ALERT −20%" : "NORMAL";
+      const cardBdr   = alertFired ? "rgba(192,57,43,0.4)" : "#E2D9C8";
+      const stripeBg  = alertFired ? "linear-gradient(90deg,#C0392B,#E74C3C)" : "linear-gradient(90deg,#1E6B3C,#27AE60)";
+      const chgCol    = priceData.dayChange > 0 ? "#1E6B3C" : priceData.dayChange < 0 ? "#C0392B" : "#B0A590";
+      const barGrad   = absDd >= 20 ? "linear-gradient(90deg,#1E6B3C,#C0392B)" : "#1E6B3C";
+      const barPct    = Math.min(absDd / 50 * 100, 100);
+
+      const mono = (extra = {}) => ({ fontFamily: "'DM Mono',monospace", ...extra });
+
+      const handleBuyPriceChange = (v) => {
+        setBuyPrice(v);
+        const p = parseFloat(v);
+        const newHigh = (!trackedHigh && p > 0) ? p : trackedHigh;
+        if (!trackedHigh && p > 0) setTrackedHigh(p);
+        onSave({ buyPrice: v, buyDate, trackedHigh: newHigh });
+      };
+
+      const handleBuyDateChange = (v) => {
+        setBuyDate(v);
+        onSave({ buyPrice, buyDate: v, trackedHigh });
+      };
+
+      return (
+        <div style={{ background: "#FEFCF8", borderRadius: 12, border: `1px solid ${cardBdr}`, boxShadow: alertFired ? "0 2px 16px rgba(192,57,43,0.08)" : "0 2px 8px rgba(100,80,40,0.06)", overflow: "hidden", marginBottom: 20 }}>
+          <div style={{ height: 4, background: stripeBg }} />
+          <div style={{ padding: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
+                  <span style={mono({ fontSize: 26, fontWeight: 600, letterSpacing: -1, color: "#1C1712" })}>{meta.id}</span>
+                  <span style={{ padding: "3px 10px", borderRadius: 4, fontSize: 9, ...mono(), fontWeight: 600, letterSpacing: 1, color: alertCol, background: alertBg, border: `1px solid ${alertBdr}` }}>{alertTxt}</span>
+                </div>
+                <div style={mono({ fontSize: 13, color: "#7A6E5F", marginBottom: 8 })}>{meta.name} · {meta.exchange}</div>
+                {hasBuy && gainPct !== null ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 20, ...mono({ fontSize: 10, fontWeight: 600 }), color: gainPct >= 0 ? "#1E6B3C" : "#C0392B", background: gainPct >= 0 ? "rgba(30,107,60,0.08)" : "rgba(192,57,43,0.08)", border: `1px solid ${gainPct >= 0 ? "rgba(30,107,60,0.2)" : "rgba(192,57,43,0.2)"}` }}>
+                    {gainPct >= 0 ? "▲" : "▼"} {gainPct >= 0 ? "+" : ""}{gainPct.toFixed(1)}% from cost{daysHeld !== null ? ` · ${daysHeld}d held` : ""}
+                  </span>
+                ) : (
+                  <span style={mono({ fontSize: 10, color: "#B0A590" })}>↓ Enter your purchase details</span>
+                )}
+              </div>
+              {drawdownPct !== null
+                ? <Gauge pct={drawdownPct} />
+                : <div style={{ width: 110, height: 110, borderRadius: "50%", background: "#F9F5EE", border: "7px solid #E2D9C8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={mono({ fontSize: 9, color: "#B0A590", textAlign: "center", lineHeight: 1.5 })}>SET BUY<br/>PRICE</span>
+                  </div>
+              }
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18, padding: "14px 16px", background: "#F9F5EE", border: "1px solid #E2D9C8", borderRadius: 8 }}>
+              {[
+                { label: "My Purchase Price ($AUD)", type: "number", placeholder: "e.g. 50.00", value: buyPrice, onChange: handleBuyPriceChange, extra: { step: "0.01", min: "0" } },
+                { label: "Purchase Date", type: "date", placeholder: "", value: buyDate, onChange: handleBuyDateChange, extra: { max: "2026-03-10" } },
+              ].map((f, i) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <label style={mono({ fontSize: 8, fontWeight: 600, letterSpacing: 2, color: "#B0A590", textTransform: "uppercase" })}>{f.label}</label>
+                  <input type={f.type} placeholder={f.placeholder} value={f.value} {...f.extra}
+                    onChange={e => f.onChange(e.target.value)}
+                    style={mono({ fontSize: 14, fontWeight: 500, color: "#1C1712", background: "#FEFCF8", border: "1px solid #D4C9B4", borderRadius: 4, padding: "7px 10px", width: "100%", outline: "none" })} />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", border: "1px solid #E2D9C8", borderRadius: 8, overflow: "hidden", background: "#F9F5EE", marginBottom: 18 }}>
+              {[
+                { l: "Current Price",  v: fmt(curPrice),                              c: "#1C1712" },
+                { l: "Tracked High",   v: effectiveHigh ? fmt(effectiveHigh) : "—",   c: "#7A6E5F" },
+                { l: "My Cost",        v: hasBuy ? fmt(bp) : "—",                     c: hasBuy ? "#1C1712" : "#B0A590" },
+                { l: "Day Change",     v: `${priceData.dayChange >= 0 ? "+" : ""}${priceData.dayChange.toFixed(2)}%`, c: chgCol },
+              ].map((m, i) => (
+                <div key={i} style={{ padding: "13px 14px", borderRight: i < 3 ? "1px solid #E2D9C8" : "none" }}>
+                  <Label>{m.l}</Label>
+                  <div style={mono({ fontSize: 17, fontWeight: 600, color: m.c })}>{m.v}</div>
+                </div>
+              ))}
+            </div>
+
+            {drawdownPct !== null && (
+              <>
+                <div style={mono({ fontSize: 8, fontWeight: 600, letterSpacing: 2.5, color: "#B0A590", textTransform: "uppercase", marginBottom: 8 })}>
+                  Drawdown from tracked high → −20% alert
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={mono({ fontSize: 9, color: "#B0A590" })}>0% ←————————→ 50%</span>
+                  <span style={mono({ fontSize: 9, color: absDd >= 20 ? "#C0392B" : "#B0A590", fontWeight: absDd >= 20 ? 600 : 400 })}>{absDd.toFixed(1)}% below peak</span>
+                </div>
+                <div style={{ position: "relative", height: 8, background: "#F9F5EE", borderRadius: 4, border: "1px solid #E2D9C8", overflow: "visible", marginBottom: 18 }}>
+                  <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${barPct}%`, borderRadius: 4, background: barGrad, transition: "width 0.8s ease" }} />
+                  <div style={{ position: "absolute", left: `${20 / 50 * 100}%`, top: -9, transform: "translateX(-50%)" }}>
+                    <div style={{ width: 1, height: 26, background: "#C0392B", margin: "0 auto" }} />
+                    <span style={mono({ fontSize: 8, display: "block", textAlign: "center", marginTop: 3, fontWeight: 600, color: "#C0392B" })}>−20%</span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {trigger20 !== null && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", border: "1px solid #E2D9C8", borderRadius: 8, overflow: "hidden", background: "#F9F5EE" }}>
+                <div style={{ padding: "12px 16px", borderRight: "1px solid #E2D9C8" }}>
+                  <Label>Alert fires at −20% from peak</Label>
+                  <div style={mono({ fontSize: 15, fontWeight: 500, color: alertFired ? "#C0392B" : "#7A6E5F" })}>{fmt(trigger20)}</div>
+                  <div style={mono({ fontSize: 11, color: "#B0A590", marginTop: 2 })}>
+                    {alertFired ? "🔴 TRIGGERED" : `${fmt(aboveBelow)} above trigger`}
+                  </div>
+                </div>
+                <div style={{ padding: "12px 16px" }}>
+                  <Label>Prices last refreshed</Label>
+                  <div style={mono({ fontSize: 13, fontWeight: 500, color: "#7A6E5F" })}>{priceData.lastUpdated}</div>
+                  <div style={mono({ fontSize: 11, color: "#B0A590", marginTop: 2 })}>tracked high updates automatically</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [storedData, setStoredData] = useState({});
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        async function load() {
+          const out = {};
+          for (const s of STOCK_META) {
+            try {
+              const r = window.storage.get(`stock:${s.id}`);
+              out[s.id] = r ? JSON.parse(r.value) : {};
+            } catch { out[s.id] = {}; }
+          }
+          setStoredData(out);
+          setLoading(false);
+        }
+        load();
+      }, []);
+
+      const handleSave = async (id, data) => {
+        setStoredData(prev => ({ ...prev, [id]: data }));
+        try { window.storage.set(`stock:${id}`, JSON.stringify(data)); }
+        catch (e) { console.error("Storage write failed", e); }
+      };
+
+      if (loading) return (
+        <div style={{ minHeight: "100vh", background: "#F5F0E8", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#B0A590" }}>Loading watchlist…</span>
+        </div>
+      );
+
+      return (
+        <div style={{ minHeight: "100vh", background: "#F5F0E8", backgroundImage: "radial-gradient(ellipse at 20% 10%, rgba(180,160,120,0.12) 0%, transparent 60%)", padding: "40px 20px", fontFamily: "Georgia, serif", color: "#1C1712" }}>
+          <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&display=swap'); input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;} input:focus{border-color:#B7730A!important;box-shadow:0 0 0 2px rgba(183,115,10,0.12)!important;}`}</style>
+
+          <div style={{ maxWidth: 700, margin: "0 auto" }}>
+            <div style={{ marginBottom: 36, borderBottom: "2px solid #1C1712", paddingBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 600, letterSpacing: 3.5, color: "#7A6E5F", textTransform: "uppercase", marginBottom: 6 }}>Peak Drawdown Monitor</div>
+                  <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: -1, lineHeight: 1 }}>ASX <em style={{ fontStyle: "italic", fontWeight: 300 }}>Watchlist</em></div>
+                </div>
+                <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#B0A590", padding: "6px 10px", border: "1px solid #D4C9B4", borderRadius: 4, background: "#F9F5EE", alignSelf: "flex-end" }}>
+                  Updated: {Object.values(PRICE_DATA)[0].lastUpdated}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
+                {[
+                  { col: "#C0392B", txt: "Alert at −20% from your post-purchase high" },
+                  { col: "#1E6B3C", txt: "Tracked high auto-updates on each refresh" },
+                ].map((l, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#7A6E5F", border: "1px solid #E2D9C8", background: "#F9F5EE" }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: l.col }} />{l.txt}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {STOCK_META.map(s => (
+              <Card key={s.id} meta={s} priceData={PRICE_DATA[s.id]} stored={storedData[s.id] || {}} onSave={(d) => handleSave(s.id, d)} />
+            ))}
+
+            <div style={{ textAlign: "center", padding: 14, border: "1px solid #E2D9C8", borderRadius: 8, background: "#F9F5EE" }}>
+              <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#B0A590", lineHeight: 1.7 }}>
+                Enter your purchase price and date to track drawdown · Tracked high only moves up · Alert fires at −20% below that high
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
