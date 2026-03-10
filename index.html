@@ -16,31 +16,6 @@
 <body>
   <div id="root"></div>
 
-  <!-- Firebase App -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-  <script>
-    // Initialize Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyDStockWatchApp2026",
-      authDomain: "stockwatch-2026.firebaseapp.com",
-      projectId: "stockwatch-2026",
-      storageBucket: "stockwatch-2026.appspot.com",
-      messagingSenderId: "000000000000",
-      appId: "1:000000000000:web:0000000000000000000000"
-    };
-    
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    
-    // Make available globally
-    window.firebaseAuth = auth;
-    window.firebaseDb = db;
-  </script>
-
   <script type="text/babel">
     const { useState, useEffect } = React;
 
@@ -59,13 +34,8 @@
       { id: "WOW", name: "Woolworths Group", exchange: "ASX" },
       { id: "COL", name: "Coles Group", exchange: "ASX" },
       { id: "TLS", name: "Telstra Corporation", exchange: "ASX" },
-      { id: "VCX", name: "Vicinity Centres", exchange: "ASX" },
-      { id: "SCG", name: "Scentre Group", exchange: "ASX" },
       { id: "APT", name: "Afterpay", exchange: "ASX" },
       { id: "Z1P", name: "Zip Co", exchange: "ASX" },
-      { id: "PYPL", name: "PayPal Holdings", exchange: "ASX" },
-      { id: "NVDA", name: "NVIDIA Corp", exchange: "ASX" },
-      { id: "TES", name: "Tesla Inc", exchange: "ASX" },
     ];
 
     // Fetch price from Yahoo Finance
@@ -89,10 +59,10 @@
           };
         }
       } catch (e) {
-        console.log('Yahoo failed, trying alternative...');
+        console.log('Yahoo fetch failed:', e);
       }
       
-      // Fallback: return mock data for demo
+      // Fallback: mock data
       return {
         price: Math.random() * 100 + 20,
         dayChange: (Math.random() * 10 - 5).toFixed(2),
@@ -101,15 +71,15 @@
     }
 
     const fmt = (n) => `$${Number(n).toFixed(2)}`;
-    const fmtPct = (n) => `${Number(n).toFixed(2)}%`;
+    const mono = (extra = {}) => ({ fontFamily: "'DM Mono',monospace", ...extra });
 
     function Gauge({ pct }) {
       const r = 44, sw = 7, cx = 55, cy = 55;
       const circ = 2 * Math.PI * r;
-      const abs  = Math.min(Math.abs(pct), 50);
+      const abs = Math.min(Math.abs(pct), 50);
       const fill = (abs / 50) * circ;
-      const col  = abs >= 20 ? "#C0392B" : "#1E6B3C";
-      const bg   = abs >= 20 ? "#FDF0EE" : "#EBF5EF";
+      const col = abs >= 20 ? "#C0392B" : "#1E6B3C";
+      const bg = abs >= 20 ? "#FDF0EE" : "#EBF5EF";
       return (
         <svg width="110" height="110" viewBox="0 0 110 110" style={{ flexShrink: 0 }}>
           <circle cx={cx} cy={cy} r={r} fill={bg} stroke="#E2D9C8" strokeWidth={sw} />
@@ -180,8 +150,6 @@
       const barGrad = absDd >= Math.abs(alertPct) ? "linear-gradient(90deg,#1E6B3C,#C0392B)" : "#1E6B3C";
       const barPct = Math.min(absDd / 50 * 100, 100);
 
-      const mono = (extra = {}) => ({ fontFamily: "'DM Mono',monospace", ...extra });
-
       const handleBuyPriceChange = (v) => {
         setBuyPrice(v);
         const p = parseFloat(v);
@@ -204,7 +172,7 @@
         <div style={{ background: "#FEFCF8", borderRadius: 12, border: `1px solid ${cardBdr}`, boxShadow: alertFired ? "0 2px 16px rgba(192,57,43,0.08)" : "0 2px 8px rgba(100,80,40,0.06)", overflow: "hidden", marginBottom: 20 }}>
           <div style={{ height: 4, background: stripeBg }} />
           <div style={{ padding: 24, position: 'relative' }}>
-            <button onClick={() => onDelete(meta.id)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', opacity: 0.4 }} title="Remove stock">✕</button>
+            <button onClick={() => onDelete(meta.id)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', opacity: 0.4, color: '#C0392B' }} title="Remove stock">✕</button>
             
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
               <div style={{ flex: 1 }}>
@@ -218,10 +186,10 @@
                     {gainPct >= 0 ? "▲" : "▼"} {gainPct >= 0 ? "+" : ""}{gainPct.toFixed(1)}% from cost{daysHeld !== null ? ` · ${daysHeld}d held` : ""}
                   </span>
                 ) : (
-                  <span style={mono({ fontSize: 10, color: "#B0A590" })}>↓ Enter your purchase details</span>
-                )}
+                  <span style={mono({ fontSize: 10, color: "#B0A590" })}>↓ Enter your purchase                )}
               </div>
-              {drawdownPct !== null
+              {drawdownPct details</span>
+ !== null
                 ? <Gauge pct={drawdownPct} />
                 : <div style={{ width: 110, height: 110, borderRadius: "50%", background: "#F9F5EE", border: "7px solid #E2D9C8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={mono({ fontSize: 9, color: "#B0A590", textAlign: "center", lineHeight: 1.5 })}>SET BUY<br/>PRICE</span>
@@ -320,7 +288,6 @@
     function AddStockForm({ onAdd }) {
       const [search, setSearch] = useState("");
       const [results, setResults] = useState([]);
-      const [selected, setSelected] = useState(null);
 
       useEffect(() => {
         if (search.length >= 1) {
@@ -338,20 +305,17 @@
         onAdd(stock);
         setSearch("");
         setResults([]);
-        setSelected(stock);
       };
 
       return (
         <div style={{ marginBottom: 24, position: 'relative' }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input 
-              type="text" 
-              placeholder="Search ASX stock (e.g. BHP, CBA...)" 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ flex: 1, padding: '12px 16px', fontSize: 14, border: '1px solid #E2D9C8', borderRadius: 8, ...mono() }}
-            />
-          </div>
+          <input 
+            type="text" 
+            placeholder="Search ASX stock (e.g. BHP, CBA...)" 
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '12px 16px', fontSize: 14, border: '1px solid #E2D9C8', borderRadius: 8, ...mono() }}
+          />
           {results.length > 0 && (
             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #E2D9C8', borderRadius: 8, marginTop: 4, zIndex: 100, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
               {results.map(s => (
@@ -365,85 +329,22 @@
       );
     }
 
-    function Auth({ onLogin, user }) {
-      const [email, setEmail] = useState("");
-      const [password, setPassword] = useState("");
-      const [isRegister, setIsRegister] = useState(false);
-      const [error, setError] = useState("");
-
-      const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
-        
-        try {
-          if (isRegister) {
-            await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
-          } else {
-            await window.firebaseAuth.signInWithEmailAndPassword(email, password);
-          }
-        } catch (err) {
-          setError(err.message);
-        }
-      };
-
-      if (user) {
-        return (
-          <div style={{ textAlign: 'center', padding: 20 }}>
-            <span style={{ ...mono({ fontSize: 12 }) }}>Signed in as {user.email}</span>
-            <button onClick={() => window.firebaseAuth.signOut()} style={{ marginLeft: 12, padding: '6px 12px', background: '#f97316', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', ...mono({ fontSize: 11 }) }}>
-              Sign Out
-            </button>
-          </div>
-        );
-      }
-
-      return (
-        <div style={{ maxWidth: 300, margin: '0 auto 24px', padding: 20, background: '#F9F5EE', borderRadius: 12, border: '1px solid #E2D9C8' }}>
-          <h3 style={{ ...mono({ fontSize: 14, marginBottom: 16 }), textAlign: 'center' }}>
-            {isRegister ? 'Create Account' : 'Sign In'}
-          </h3>
-          <form onSubmit={handleSubmit}>
-            <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)}
-              style={{ width: '100%', padding: '10px', marginBottom: 8, border: '1px solid #D4C9B4', borderRadius: 4, ...mono({ fontSize: 12 }) }} />
-            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)}
-              style={{ width: '100%', padding: '10px', marginBottom: 12, border: '1px solid #D4C9B4', borderRadius: 4, ...mono({ fontSize: 12 }) }} />
-            {error && <div style={{ color: '#C0392B', fontSize: 11, marginBottom: 12, ...mono() }}>{error}</div>}
-            <button type="submit" style={{ width: '100%', padding: '10px', background: '#f97316', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>
-              {isRegister ? 'Create Account' : 'Sign In'}
-            </button>
-          </form>
-          <button onClick={() => setIsRegister(!isRegister)} style={{ marginTop: 12, background: 'none', border: 'none', color: '#f97316', cursor: 'pointer', width: '100%', ...mono({ fontSize: 11 }) }}>
-            {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Register"}
-          </button>
-        </div>
-      );
-    }
-
     function App() {
-      const [user, setUser] = useState(null);
       const [watchlist, setWatchlist] = useState([]);
       const [prices, setPrices] = useState({});
       const [loading, setLoading] = useState(true);
 
-      // Listen for auth changes
+      // Load from localStorage
       useEffect(() => {
-        window.firebaseAuth.onAuthStateChanged(async (u) => {
-          setUser(u);
-          if (u) {
-            // Load watchlist from Firestore
-            const doc = await window.firebaseDb.collection('watchlists').doc(u.uid).get();
-            if (doc.exists) {
-              setWatchlist(doc.data().stocks || []);
-            }
-          } else {
-            // Load from localStorage as fallback
-            const local = localStorage.getItem('stockwatch_watchlist');
-            if (local) {
-              setWatchlist(JSON.parse(local));
-            }
+        const saved = localStorage.getItem('stockwatch_watchlist');
+        if (saved) {
+          try {
+            setWatchlist(JSON.parse(saved));
+          } catch (e) {
+            console.log('Error loading watchlist:', e);
           }
-          setLoading(false);
-        });
+        }
+        setLoading(false);
       }, []);
 
       // Fetch prices
@@ -462,37 +363,25 @@
         
         if (watchlist.length > 0) {
           fetchPrices();
-          // Refresh every 5 minutes
           const interval = setInterval(fetchPrices, 5 * 60 * 1000);
           return () => clearInterval(interval);
         }
       }, [watchlist.length]);
 
-      const handleAddStock = async (stock) => {
+      const handleAddStock = (stock) => {
         if (watchlist.find(s => s.id === stock.id)) return;
-        
         const newWatchlist = [...watchlist, stock];
         setWatchlist(newWatchlist);
-        
-        if (user) {
-          await window.firebaseDb.collection('watchlists').doc(user.uid).set({ stocks: newWatchlist });
-        } else {
-          localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist));
-        }
+        localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist));
       };
 
-      const handleRemoveStock = async (stockId) => {
+      const handleRemoveStock = (stockId) => {
         const newWatchlist = watchlist.filter(s => s.id !== stockId);
         setWatchlist(newWatchlist);
-        
-        if (user) {
-          await window.firebaseDb.collection('watchlists').doc(user.uid).set({ stocks: newWatchlist });
-        } else {
-          localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist));
-        }
+        localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist));
       };
 
-      const handleSaveStock = async (stockId, data) => {
+      const handleSaveStock = (stockId, data) => {
         const newWatchlist = watchlist.map(s => {
           if (s.id === stockId) {
             return { ...s, ...data };
@@ -500,12 +389,7 @@
           return s;
         });
         setWatchlist(newWatchlist);
-        
-        if (user) {
-          await window.firebaseDb.collection('watchlists').doc(user.uid).set({ stocks: newWatchlist });
-        } else {
-          localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist));
-        }
+        localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist));
       };
 
       if (loading) return (
@@ -541,8 +425,6 @@
               </div>
             </div>
 
-            <Auth user={user} />
-
             <AddStockForm onAdd={handleAddStock} />
 
             {watchlist.length === 0 ? (
@@ -565,7 +447,7 @@
 
             <div style={{ textAlign: "center", padding: 14, border: "1px solid #E2D9C8", borderRadius: 8, background: "#F9F5EE" }}>
               <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#B0A590", lineHeight: 1.7 }}>
-                Sign in to save your watchlist · Tracked high only moves up · Alert fires at your custom threshold below that high
+                Data saved to your browser · Tracked high only moves up · Alert fires at your custom threshold
               </span>
             </div>
           </div>
