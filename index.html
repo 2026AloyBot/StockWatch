@@ -239,6 +239,32 @@
       const handleRemoveStock = (stockId) => { const newWatchlist = watchlist.filter(s => s.id !== stockId); setWatchlist(newWatchlist); localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist)); };
       const handleSaveStock = (stockId, data) => { const newWatchlist = watchlist.map(s => s.id === stockId ? { ...s, ...data } : s); setWatchlist(newWatchlist); localStorage.setItem('stockwatch_watchlist', JSON.stringify(newWatchlist)); };
 
+      // Portfolio Summary Calculations
+      const portfolioStats = (() => {
+        let totalValue = 0;
+        let totalCost = 0;
+        let totalDayChange = 0;
+        let stocksWithBuy = 0;
+        
+        watchlist.forEach(stock => {
+          const price = prices[stock.id]?.price || 0;
+          const dayChange = prices[stock.id]?.dayChange || 0;
+          const buyPrice = parseFloat(stock.buyPrice) || 0;
+          
+          if (buyPrice > 0) {
+            totalValue += price; // Assume 1 share for simplicity
+            totalCost += buyPrice;
+            totalDayChange += (price * dayChange / 100);
+            stocksWithBuy++;
+          }
+        });
+        
+        const totalGainLoss = totalValue - totalCost;
+        const totalGainLossPct = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
+        
+        return { totalValue, totalCost, totalDayChange, totalGainLoss, totalGainLossPct, stocksWithBuy, totalStocks: watchlist.length };
+      })();
+
       if (loading) return <div style={{ minHeight: "100vh", background: "#F5F0E8", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#B0A590" }}>Loading...</span></div>;
 
       return (
@@ -250,6 +276,17 @@
                 <div><div style={{ fontFamily: "'DM Mono',monospace", fontSize: 9, fontWeight: 600, letterSpacing: 3.5, color: "#7A6E5F", textTransform: "uppercase", marginBottom: 6 }}>Peak Drawdown Monitor</div><div style={{ fontSize: 32, fontWeight: 700, letterSpacing: -1, lineHeight: 1 }}>Stock<em style={{ fontStyle: "italic", fontWeight: 300 }}>Watch</em></div></div>
                 <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#B0A590", padding: "6px 10px", border: "1px solid #D4C9B4", borderRadius: 4, background: "#F9F5EE", alignSelf: "flex-end" }}>{new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
               </div>
+              
+              {/* Portfolio Summary */}
+              {portfolioStats.totalStocks > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 20, padding: 16, background: '#FEFCF8', borderRadius: 12, border: '1px solid #E2D9C8' }}>
+                  <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>TOTAL VALUE</div><div style={mono({ fontSize: 18, fontWeight: 600 })}>${portfolioStats.totalValue.toFixed(2)}</div></div>
+                  <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>TOTAL COST</div><div style={mono({ fontSize: 18, fontWeight: 600 })}>${portfolioStats.totalCost.toFixed(2)}</div></div>
+                  <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>GAIN/LOSS</div><div style={mono({ fontSize: 18, fontWeight: 600, color: portfolioStats.totalGainLoss >= 0 ? '#1E6B3C' : '#C0392B' })}>{portfolioStats.totalGainLoss >= 0 ? '+' : ''}${portfolioStats.totalGainLoss.toFixed(2)} ({portfolioStats.totalGainLossPct.toFixed(1)}%)</div></div>
+                  <div><div style={mono({ fontSize: 8, color: '#B0A590', letterSpacing: 1 })}>DAY CHANGE</div><div style={mono({ fontSize: 18, fontWeight: 600, color: portfolioStats.totalDayChange >= 0 ? '#1E6B3C' : '#C0392B' })}>{portfolioStats.totalDayChange >= 0 ? '+' : ''}${portfolioStats.totalDayChange.toFixed(2)}</div></div>
+                </div>
+              )}
+              
               <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#7A6E5F", border: "1px solid #E2D9C8", background: "#F9F5EE" }}><div style={{ width: 7, height: 7, borderRadius: "50%", background: "#C0392B" }} />Alert at custom % from your post-purchase high</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 4, fontFamily: "'DM Mono',monospace", fontSize: 10, color: "#7A6E5F", border: "1px solid #E2D9C8", background: "#F9F5EE" }}><div style={{ width: 7, height: 7, borderRadius: "50%", background: "#1E6B3C" }} />Tracked high auto-updates on each refresh</div>
