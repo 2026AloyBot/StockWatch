@@ -31,17 +31,17 @@ Based on common retail investor needs:
 - [x] Show active alerts on each stock card
 - [x] Visual indicator when alert triggers
 
-### ☐ Feature 4: Multiple Portfolios
-- [ ] Add "Create Portfolio" button
-- [ ] Allow naming portfolios (e.g., "Growth", "Retirement")
-- [ ] Add stock to specific portfolio
-- [ ] Filter view by portfolio
+### ☑ Feature 4: Multiple Portfolios
+- [x] Add "Create Portfolio" button
+- [x] Allow naming portfolios (e.g., "Growth", "Retirement")
+- [x] Add stock to specific portfolio
+- [x] Filter view by portfolio
 
-### ☐ Feature 5: Cost Basis & Tax Info
-- [ ] Calculate total invested amount
-- [ ] Show average cost per share
-- [ ] Display unrealized gain/loss in $
-- [ ] Show capital gains (if sold concept)
+### ☑ Feature 5: Cost Basis & Tax Info
+- [x] Calculate total invested amount
+- [x] Show average cost per share
+- [x] Display unrealized gain/loss in $
+- [x] Show annual dividend income
 
 ---
 
